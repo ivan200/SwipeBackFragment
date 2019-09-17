@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">TestProject</string>
+
+    <string name="fr_one">Fragment One</string>
+    <string name="fr_two">Fragment Two</string>
+    <string name="fr_three">Fragment Three</string>
+
+</resources>

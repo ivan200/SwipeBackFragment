@@ -1,7 +1,6 @@
 package com.ivan200.exampleswipeback.ui
 
 import android.os.Bundle
-
 import androidx.annotation.IdRes
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
@@ -14,49 +13,47 @@ class ActivityFragmentManager(
     var supportFragmentManager: FragmentManager,
     @IdRes var contentFragmentId: Int
 ) {
-
     private var allowUpdateActiveFragment = true
     private var blockOneFragmentUpdate = false
 
     val activeFragment: Fragment? get() = supportFragmentManager.findFragmentById(contentFragmentId)
-    fun updateActiveFragment() = activeFragment?.onResume()
+    fun updateFragment(fragment: Fragment? = null) = (fragment ?: activeFragment)?.onResume()
 
-    private fun createFragment(fragmentClass: Class<out BaseFragment>) : BaseFragment {
-        return supportFragmentManager.fragmentFactory.instantiate(ClassLoader.getSystemClassLoader(), fragmentClass.name) as BaseFragment
+    private fun createFragment(fragmentClass: Class<out BaseFragment>): BaseFragment {
+        return supportFragmentManager.fragmentFactory
+            .instantiate(ClassLoader.getSystemClassLoader(), fragmentClass.name) as BaseFragment
     }
 
     init {
         supportFragmentManager.addOnBackStackChangedListener {
             when {
                 blockOneFragmentUpdate -> blockOneFragmentUpdate = false
-                allowUpdateActiveFragment -> this@ActivityFragmentManager.updateActiveFragment()
+                allowUpdateActiveFragment -> this@ActivityFragmentManager.updateFragment()
             }
         }
     }
 
-    fun setCurrentFragment(fragmentClass: Class<out BaseFragment>, args: Bundle?) {
+    fun setCurrentFragment(fragmentClass: Class<out BaseFragment>, args: Bundle? = null) {
         try {
             val fragment = supportFragmentManager.findFragmentByTag(fragmentClass.simpleName)
-
             if (fragment == null) {
-                //одиночная блокировка обновления фрагмента, так как при добавлении фрагмента изменится стек и сработает backStackChangedListener
-                //для предотвращения двойного onResume
+                //Single blocking of the fragment update, because when the fragment is added,
+                //the stack will be changed and backStackChangedListener will be triggered
+                //To prevent double onResume
                 blockOneFragmentUpdate = true
-                val fDataNewInstance = createFragment(fragmentClass)
-                fDataNewInstance.arguments = args
-                fDataNewInstance.activityFragmentManager = this
-                supportFragmentManager.beginTransaction()
-                    .add(contentFragmentId, fDataNewInstance, fragmentClass.simpleName)
-                    .setTransition(FragmentTransaction.TRANSIT_NONE)
-                    .addToBackStack(fragmentClass.simpleName)
-                    .commit()
+                createFragment(fragmentClass).let {
+                    it.arguments = args
+                    supportFragmentManager.beginTransaction()
+                        .add(contentFragmentId, it, fragmentClass.simpleName)
+                        .setTransition(FragmentTransaction.TRANSIT_NONE)
+                        .addToBackStack(fragmentClass.simpleName)
+                        .commit()
+                }
             } else {
-                val activeFragment = activeFragment
-                fragment.arguments = args
-                if (activeFragment == null || activeFragment.tag == null || activeFragment.tag != fragment.tag) {
-                    supportFragmentManager.popBackStackImmediate(fragment.tag, 0)
-                } else {
-                    fragment.onResume()
+                fragment.let {
+                    it.arguments = args
+                    if (it.tag == activeFragment?.tag) updateFragment(it)
+                    else supportFragmentManager.popBackStackImmediate(it.tag, 0)
                 }
             }
         } catch (ex: Exception) {
@@ -65,21 +62,20 @@ class ActivityFragmentManager(
     }
 
     fun removeAllFragments() {
-        //так как при очистке всех фрагментов изменяется стек, срабатывает backStackChangedListener
-        //флаг нужен для предотвращения множественного вызова onResume на закрывающихся фрагментах, и краше приложения
+        //Since the stack changes while we cleaning all the fragments, backStackChangedListener triggers
+        //The switch is needed to prevent multiple calls update on closing fragments and crash app.
         allowUpdateActiveFragment = false
+        supportFragmentManager.apply {
+            beginTransaction().also { transition->
+                fragments.forEach { transition.remove(it) }
+            }.commit()
 
-        val fragmentTransaction = supportFragmentManager.beginTransaction()
-        for (activeFragment in supportFragmentManager.fragments) {
-            fragmentTransaction.remove(activeFragment)
-        }
-        fragmentTransaction.commit()
-
-        while (supportFragmentManager.backStackEntryCount > 0) {
-            try {
-                supportFragmentManager.popBackStackImmediate()
-            } catch (ex: Exception) {
-                ex.printStackTrace()
+            while (backStackEntryCount > 0) {
+                try {
+                    popBackStackImmediate()
+                } catch (ex: Exception) {
+                    ex.printStackTrace()
+                }
             }
         }
         allowUpdateActiveFragment = true

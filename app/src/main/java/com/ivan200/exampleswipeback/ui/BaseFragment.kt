@@ -16,32 +16,26 @@ abstract class BaseFragment(contentLayoutId: Int) : SwipeBackFragment(contentLay
     abstract val title: Int
 
     val mActivity  by lazy { activity as BaseActivity }
-    open var activityFragmentManager: ActivityFragmentManager? = null
-
     val toolbar by lazy { mView.findViewById<Toolbar?>(R.id.toolbar) }
     lateinit var mView: View
+    lateinit var swipeView: View
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         if(!::mView.isInitialized){
             mView = super.onCreateView(inflater, container, savedInstanceState)!!
 
-            if (toolbar != null) {
-                mActivity.setSupportActionBar(toolbar)
+            toolbar?.let {
+                mActivity.setSupportActionBar(it)
                 mActivity.title = getText(title)
-                toolbar?.setNavigationOnClickListener { mActivity.onBackPressed() }
+                it.setNavigationOnClickListener { mActivity.onBackPressed() }
             }
 
             initialize(mView)
+            swipeView = attachToSwipeBack(mView)
+            setEdgeLevel(SwipeBackLayout.EdgeLevel.MAX)
         }
-        setEdgeLevel(SwipeBackLayout.EdgeLevel.MAX)
-
-        return attachToSwipeBack(mView)
+        return swipeView
     }
 
     abstract fun initialize(view: View)
-
-    fun showError(throwable: Throwable) {
-        mActivity.showError(throwable)
-    }
-
 }

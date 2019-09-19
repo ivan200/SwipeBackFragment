@@ -13,14 +13,13 @@ import com.maxmoscow.erp.utils.DialogHelper
 //
 abstract class BaseActivity : SwipeBackActivity() {
 
-    private var activityFragmentManager: ActivityFragmentManager? = null
-    val activeFragment: Fragment? get() = activityFragmentManager?.activeFragment
-    val activeFragmentTag: String? get() = activityFragmentManager?.activeFragment?.tag
-    fun updateActiveFragment() = activityFragmentManager?.updateActiveFragment()
-    fun removeAllFragments() = activityFragmentManager?.removeAllFragments()
-    fun setCurrentFragment(fragmentClass: Class<out BaseFragment>) = setCurrentFragment(fragmentClass, null)
-    fun setCurrentFragment(fragmentClass: Class<out BaseFragment>, args: Bundle?) =
-        tryResumeAction { activityFragmentManager?.setCurrentFragment(fragmentClass, args) }
+    private var mManager: ActivityFragmentManager? = null
+    val activeFragment: Fragment? get() = mManager?.activeFragment
+    val activeFragmentTag: String? get() = mManager?.activeFragment?.tag
+    fun updateActiveFragment() = mManager?.updateFragment()
+    fun removeAllFragments() = mManager?.removeAllFragments()
+    fun setCurrentFragment(fragmentClass: Class<out BaseFragment>, args: Bundle? = null) =
+        tryResumeAction { mManager?.setCurrentFragment(fragmentClass, args) }
 
     abstract val layoutId: Int
 
@@ -34,7 +33,7 @@ abstract class BaseActivity : SwipeBackActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(layoutId)
-        activityFragmentManager = ActivityFragmentManager(supportFragmentManager, R.id.content_frame)
+        mManager = ActivityFragmentManager(supportFragmentManager, R.id.content_frame)
 
         setEdgeLevel(SwipeBackLayout.EdgeLevel.MAX)
     }
@@ -54,12 +53,7 @@ abstract class BaseActivity : SwipeBackActivity() {
         }
     }
 
-    open fun showException(throwable: Throwable) {
-        DialogHelper(this).withThrowable(throwable).show()
-    }
-
-
-    fun showError(throwable: Throwable) {
+    open fun showError(throwable: Throwable) {
         tryResumeAction {
             runOnUiThread {
                 DialogHelper(this).withThrowable(throwable).show()
@@ -67,16 +61,15 @@ abstract class BaseActivity : SwipeBackActivity() {
         }
     }
 
-    fun onLastFragmentClose() {
+    private fun onLastFragmentClosed() {
         finish()
     }
 
     override fun onBackPressed() {
         if (supportFragmentManager.backStackEntryCount <= 1) {
-            onLastFragmentClose()
+            onLastFragmentClosed()
             return
         }
-        //Utils.hideKeyboard(this)
         super.onBackPressed()
     }
 }

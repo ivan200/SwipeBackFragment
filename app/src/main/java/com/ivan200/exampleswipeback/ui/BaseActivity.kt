@@ -33,9 +33,10 @@ abstract class BaseActivity : SwipeBackActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(layoutId)
-        mManager = ActivityFragmentManager(supportFragmentManager, R.id.content_frame)
-
-        setEdgeLevel(SwipeBackLayout.EdgeLevel.MAX)
+        if(mManager == null) {
+            mManager = ActivityFragmentManager(supportFragmentManager, R.id.content_frame)
+            setEdgeLevel(SwipeBackLayout.EdgeLevel.MAX)
+        }
     }
 
     override fun onResume() {

@@ -14,6 +14,8 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setCurrentFragment(FragmentOne::class.java)
+        if(activeFragmentTag.isNullOrEmpty()) {
+            setCurrentFragment(FragmentOne::class.java)
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.ivan200.exampleswipeback.ui.fragments
 
+import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import com.ivan200.exampleswipeback.R
@@ -10,9 +11,12 @@ import com.ivan200.exampleswipeback.ui.BaseFragment
 //
 class FragmentTwo : BaseFragment(R.layout.fragment_two) {
 
-    private val button2 by lazy { mView.findViewById<Button>(R.id.button2) }
+    override val title: Int get() = R.string.fr_two
 
-    override fun initialize(view: View) {
+    private val button2 get() = mView.findViewById<Button>(R.id.button2)
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
         mActivity.supportActionBar?.apply {
             setDisplayShowHomeEnabled(true)
             setDisplayHomeAsUpEnabled(true)
@@ -22,8 +26,4 @@ class FragmentTwo : BaseFragment(R.layout.fragment_two) {
             mActivity.setCurrentFragment(FragmentThree::class.java)
         }
     }
-
-    override val title: Int
-        get() = R.string.fr_two
-
 }

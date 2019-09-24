@@ -93,6 +93,10 @@ open class SwipeBackFragment : Fragment {
         swipeBackLayout.preDragPercent = percent
     }
 
+    protected fun setEdgeOrientation(orientation: Int) {
+        swipeBackLayout.setEdgeOrientation(orientation)
+    }
+
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
         if (hidden) {

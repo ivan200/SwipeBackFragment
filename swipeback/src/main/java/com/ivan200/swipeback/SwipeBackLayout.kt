@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.annotation.IntDef
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.customview.widget.ViewDragHelper
 import androidx.fragment.app.Fragment
@@ -63,7 +64,6 @@ open class SwipeBackLayout : FrameLayout {
             field = preDragPercent
             preCounter = if (preDragPercent > 0f) DragPreCounter() else null
         }
-
 
     /**
      * The set of listeners to be sent events through.
@@ -159,7 +159,8 @@ open class SwipeBackLayout : FrameLayout {
      * Set a drawable used for edge shadow.
      */
     fun setShadow(resId: Int, edgeFlag: Int) {
-        setShadow(resources.getDrawable(resId), edgeFlag)
+        val drawable = ContextCompat.getDrawable(context, resId)!!
+        setShadow(drawable, edgeFlag)
     }
 
     /**
@@ -318,10 +319,14 @@ open class SwipeBackLayout : FrameLayout {
         override fun tryCaptureView(child: View, pointerId: Int): Boolean {
             val dragEnable = mHelper!!.isEdgeTouched(mEdgeFlag, pointerId)
             if (dragEnable) {
-                if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {
-                    mCurrentSwipeOrientation = EDGE_LEFT
-                } else if (mHelper!!.isEdgeTouched(EDGE_RIGHT, pointerId)) {
-                    mCurrentSwipeOrientation = EDGE_RIGHT
+                if(edgeLevel == EdgeLevel.MAX){
+                    mCurrentSwipeOrientation = mEdgeFlag
+                } else {
+                    if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {
+                        mCurrentSwipeOrientation = EDGE_LEFT
+                    } else if (mHelper!!.isEdgeTouched(EDGE_RIGHT, pointerId)) {
+                        mCurrentSwipeOrientation = EDGE_RIGHT
+                    }
                 }
 
                 if (mListeners?.isNotEmpty() == true) {
@@ -330,7 +335,7 @@ open class SwipeBackLayout : FrameLayout {
                     }
                 }
 
-                if(preCounter?.canCaptureView() == false){
+                if(preCounter?.canCaptureView(mEdgeFlag) == false){
                     return false
                 }
 
@@ -463,7 +468,7 @@ open class SwipeBackLayout : FrameLayout {
 
     }
 
-    internal inner class DragPreCounter{
+    internal inner class DragPreCounter {
         private var canDrag = false
         private var firstDragPoint: PointF? = null
         private var lastDragPoint: PointF? = null
@@ -488,16 +493,17 @@ open class SwipeBackLayout : FrameLayout {
             }
         }
 
-        fun canCaptureView(): Boolean {
-            if(!canDrag && firstDragPoint != null && lastDragPoint != null){
+        fun canCaptureView(edges: Int): Boolean {
+            if (!canDrag && firstDragPoint != null && lastDragPoint != null) {
                 val dragX = abs(firstDragPoint!!.x - lastDragPoint!!.x)
                 val dragY = abs(firstDragPoint!!.y - lastDragPoint!!.y)
-                if(dragY < dragX && dragX/width > preDragPercent/100){
+
+                if (dragY < dragX && dragX / width > preDragPercent / 100) {
                     canDrag = true
-                } else{
+                } else {
                     return false
                 }
-            } else if(!canDrag){
+            } else if (!canDrag) {
                 return false
             }
             return true

@@ -70,10 +70,10 @@ open class SwipeBackLayout : FrameLayout {
 
     val mEdgeFlag get() = currentSwipeOrientation
 
-    val canSwipeFromLeft get() = mEdgeFlag and ViewDragHelper.EDGE_LEFT != 0
-    val canSwipeFromTop get() = mEdgeFlag and ViewDragHelper.EDGE_TOP != 0
-    val canSwipeFromRight get() = mEdgeFlag and ViewDragHelper.EDGE_RIGHT != 0
-    val canSwipeFromBottom get() = mEdgeFlag and ViewDragHelper.EDGE_BOTTOM != 0
+    val canSwipeFromLeft    get() = mEdgeFlag and ViewDragHelper.EDGE_LEFT != 0
+    val canSwipeFromTop     get() = mEdgeFlag and ViewDragHelper.EDGE_TOP != 0
+    val canSwipeFromRight   get() = mEdgeFlag and ViewDragHelper.EDGE_RIGHT != 0
+    val canSwipeFromBottom  get() = mEdgeFlag and ViewDragHelper.EDGE_BOTTOM != 0
 
     var edgeLevel: EdgeLevel? = null
         set(edgeLevel) {
@@ -409,9 +409,10 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int {
+            val direction = preCounter?.getDragDirection()
             return if (preCounter == null
-                || preCounter?.dragDirection == DragDirection.FROMLEFT
-                || preCounter?.dragDirection == DragDirection.FROMRIGHT
+                || direction == DragDirection.FROMLEFT
+                || direction == DragDirection.FROMRIGHT
             ) {
                 when {
                     (canSwipeFromLeft && canSwipeFromRight) -> {
@@ -425,15 +426,13 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int {
+            val direction = preCounter?.getDragDirection()
             return if (preCounter == null
-                || preCounter?.dragDirection == DragDirection.FROMTOP
-                || preCounter?.dragDirection == DragDirection.FROMBOTTOM
+                || direction == DragDirection.FROMTOP
+                || direction == DragDirection.FROMBOTTOM
             ) {
                 when {
-                    (canSwipeFromTop && canSwipeFromBottom) -> min(
-                        child.height,
-                        max(top, -child.height)
-                    )
+                    (canSwipeFromTop && canSwipeFromBottom) -> min(child.height,max(top, -child.height))
                     canSwipeFromTop -> min(child.height, max(top, 0))
                     canSwipeFromBottom -> min(0, max(top, -child.height))
                     else -> 0
@@ -548,9 +547,24 @@ open class SwipeBackLayout : FrameLayout {
         private var canDrag = false
         private var firstDragPoint: PointF? = null
         private var lastDragPoint: PointF? = null
-        open var dragDirection: DragDirection = DragDirection.NONE
 
-        private fun clearDrag(){
+        fun getDragDirection(): DragDirection {
+            return if (firstDragPoint != null && lastDragPoint != null) {
+                val dragX = lastDragPoint!!.x - firstDragPoint!!.x
+                val dragY = lastDragPoint!!.y - firstDragPoint!!.y
+                val dirHoriz = abs(dragX) > abs(dragY)
+
+                when {
+                    dirHoriz && dragX > 0 -> DragDirection.FROMLEFT
+                    dirHoriz && dragX < 0 -> DragDirection.FROMRIGHT
+                    !dirHoriz && dragY > 0 -> DragDirection.FROMTOP
+                    !dirHoriz && dragY < 0 -> DragDirection.FROMBOTTOM
+                    else -> DragDirection.NONE
+                }
+            } else DragDirection.NONE
+        }
+
+        private fun clearDrag() {
             canDrag = false
             firstDragPoint = null
             lastDragPoint = null
@@ -572,23 +586,15 @@ open class SwipeBackLayout : FrameLayout {
 
         fun canCaptureView(): Boolean {
             if (!canDrag && firstDragPoint != null && lastDragPoint != null) {
+                val dir = getDragDirection()
+
                 val dragX = lastDragPoint!!.x - firstDragPoint!!.x
                 val dragY = lastDragPoint!!.y - firstDragPoint!!.y
 
-                val dirHoriz = abs(dragX) > abs(dragY)
-
-                dragDirection = when {
-                    dirHoriz && dragX > 0 ->  DragDirection.FROMLEFT
-                    dirHoriz && dragX < 0 ->  DragDirection.FROMRIGHT
-                    !dirHoriz && dragY > 0 -> DragDirection.FROMTOP
-                    !dirHoriz && dragY < 0 -> DragDirection.FROMBOTTOM
-                    else -> DragDirection.NONE
-                }
-
-                if ((canSwipeFromLeft && dragDirection == DragDirection.FROMLEFT && abs(dragX) / width > preDragPercent / 100)
-                    || (canSwipeFromRight && dragDirection == DragDirection.FROMRIGHT && abs(dragX) / width > preDragPercent / 100)
-                    || (canSwipeFromTop && dragDirection == DragDirection.FROMTOP && abs(dragY) / width > preDragPercent / 100)
-                    || (canSwipeFromBottom && dragDirection == DragDirection.FROMBOTTOM && abs(dragY) / width > preDragPercent / 100)
+                if ((canSwipeFromLeft && dir == DragDirection.FROMLEFT && abs(dragX) / width > preDragPercent / 100)
+                    || (canSwipeFromRight && dir == DragDirection.FROMRIGHT && abs(dragX) / width > preDragPercent / 100)
+                    || (canSwipeFromTop && dir == DragDirection.FROMTOP && abs(dragY) / width > preDragPercent / 100)
+                    || (canSwipeFromBottom && dir == DragDirection.FROMBOTTOM && abs(dragY) / width > preDragPercent / 100)
                 ) {
                     canDrag = true
                 } else {

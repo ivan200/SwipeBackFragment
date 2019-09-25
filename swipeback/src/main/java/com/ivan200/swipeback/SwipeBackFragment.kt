@@ -86,15 +86,15 @@ open class SwipeBackFragment : Fragment {
     }
 
     protected fun setEdgeLevel(widthPixel: Int) {
-        swipeBackLayout.setEdgeLevel(widthPixel)
+        swipeBackLayout.edgeLevelPixels = widthPixel
     }
 
     protected fun setPreDragPercent(percent: Float) {
         swipeBackLayout.preDragPercent = percent
     }
 
-    protected fun setEdgeOrientation(orientation: Int) {
-        swipeBackLayout.setEdgeOrientation(orientation)
+    protected fun setEdgeOrientation(orientation: SwipeBackLayout.SwipeOrientation) {
+        swipeBackLayout.currentSwipeOrientation = orientation
     }
 
     override fun onHiddenChanged(hidden: Boolean) {

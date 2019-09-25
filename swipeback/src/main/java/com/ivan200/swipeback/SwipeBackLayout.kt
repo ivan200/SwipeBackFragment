@@ -12,7 +12,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.annotation.IntDef
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.customview.widget.ViewDragHelper
@@ -48,15 +47,44 @@ open class SwipeBackLayout : FrameLayout {
 
     private var mShadowLeft: Drawable? = null
     private var mShadowRight: Drawable? = null
+    private var mShadowTop: Drawable? = null
+    private var mShadowBottom: Drawable? = null
     private val mTmpRect: Rect = Rect()
 
-    private var mEdgeFlag: Int = 0
     private var mEnable = true
-    private var mCurrentSwipeOrientation: Int = 0
+
+    /**
+     * Enable edge tracking for the selected edges of the parent view.
+     * The callback's [ViewDragHelper.Callback.onEdgeTouched] and
+     * [ViewDragHelper.Callback.onEdgeDragStarted] methods will only be invoked
+     * for edges for which edge tracking has been enabled.
+     */
+    var currentSwipeOrientation: SwipeOrientation = SwipeOrientation.LEFT
+        set(it) {
+            field = it
+            mHelper!!.setEdgeTrackingEnabled(it.edges)
+            setShadow(it)
+            validateEdgeLevel(edgeLevelPixels, edgeLevel)
+        }
+
+    val mEdgeFlag get() = currentSwipeOrientation.edges
+
+    val canSwipeFromLeft get() = mEdgeFlag and SwipeOrientation.LEFT.edges != 0
+    val canSwipeFromTop get() = mEdgeFlag and SwipeOrientation.TOP.edges != 0
+    val canSwipeFromRight get() = mEdgeFlag and SwipeOrientation.RIGHT.edges != 0
+    val canSwipeFromBottom get() = mEdgeFlag and SwipeOrientation.BOTTOM.edges != 0
+
+
     var edgeLevel: EdgeLevel? = null
         set(edgeLevel) {
             field = edgeLevel
             validateEdgeLevel(0, edgeLevel)
+        }
+
+    var edgeLevelPixels: Int = 0
+        set(edgeLevelPixels) {
+            field = edgeLevelPixels
+            validateEdgeLevel(edgeLevelPixels, null)
         }
 
     var preDragPercent: Float = 8f
@@ -64,6 +92,8 @@ open class SwipeBackLayout : FrameLayout {
             field = preDragPercent
             preCounter = if (preDragPercent > 0f) DragPreCounter() else null
         }
+
+    private var preCounter: DragPreCounter? = DragPreCounter()
 
     /**
      * The set of listeners to be sent events through.
@@ -76,8 +106,8 @@ open class SwipeBackLayout : FrameLayout {
 
     private fun init() {
         mHelper = ViewDragHelper.create(this, ViewDragCallback())
-        setShadow(R.drawable.shadow_left, EDGE_LEFT)
-        setEdgeOrientation(EDGE_LEFT)
+
+        currentSwipeOrientation = SwipeOrientation.LEFT
     }
 
     /**
@@ -91,28 +121,26 @@ open class SwipeBackLayout : FrameLayout {
         mScrollFinishThreshold = threshold
     }
 
-    /**
-     * Enable edge tracking for the selected edges of the parent view.
-     * The callback's [ViewDragHelper.Callback.onEdgeTouched] and
-     * [ViewDragHelper.Callback.onEdgeDragStarted] methods will only be invoked
-     * for edges for which edge tracking has been enabled.
-     *
-     * @param orientation Combination of edge flags describing the edges to watch
-     * @see .EDGE_LEFT
-     *
-     * @see .EDGE_RIGHT
-     */
-    fun setEdgeOrientation(orientation: Int) {
-        mEdgeFlag = orientation
-        mHelper!!.setEdgeTrackingEnabled(orientation)
 
-        if (orientation == EDGE_RIGHT || orientation == EDGE_ALL) {
-            setShadow(R.drawable.shadow_right, EDGE_RIGHT)
-        }
+    enum class SwipeOrientation private constructor(var edges: Int) {
+        LEFT(ViewDragHelper.EDGE_LEFT),
+        RIGHT(ViewDragHelper.EDGE_RIGHT),
+        HORISONTAL(ViewDragHelper.EDGE_LEFT or ViewDragHelper.EDGE_RIGHT),
+        TOP(ViewDragHelper.EDGE_TOP),
+        BOTTOM(ViewDragHelper.EDGE_BOTTOM),
+        VERTICAL(ViewDragHelper.EDGE_TOP or ViewDragHelper.EDGE_BOTTOM),
+        ALL(ViewDragHelper.EDGE_ALL);
     }
 
-    fun setEdgeLevel(widthPixel: Int) {
-        validateEdgeLevel(widthPixel, null)
+    fun setShadow(orientation: SwipeOrientation) {
+        if (mShadowLeft == null && orientation.edges and SwipeOrientation.LEFT.edges != 0)
+            mShadowLeft = ContextCompat.getDrawable(context, R.drawable.shadow_left)!!
+        if (mShadowRight == null && orientation.edges and SwipeOrientation.RIGHT.edges != 0)
+            mShadowRight = ContextCompat.getDrawable(context, R.drawable.shadow_right)!!
+        if (mShadowTop == null && orientation.edges and SwipeOrientation.TOP.edges != 0)
+            mShadowTop = ContextCompat.getDrawable(context, R.drawable.shadow_top)!!
+        if (mShadowBottom == null && orientation.edges and SwipeOrientation.BOTTOM.edges != 0)
+            mShadowBottom = ContextCompat.getDrawable(context, R.drawable.shadow_bottom)!!
     }
 
     private fun validateEdgeLevel(widthPixel: Int, edgeLevel: EdgeLevel?) {
@@ -125,9 +153,13 @@ open class SwipeBackLayout : FrameLayout {
             if (widthPixel != 0) {
                 mEdgeSize.setInt(mHelper, widthPixel)
             } else {
+                var size = metrics.widthPixels
+                if(canSwipeFromTop || canSwipeFromBottom){
+                    size = metrics.heightPixels
+                }
                 when (edgeLevel) {
-                    EdgeLevel.MAX -> mEdgeSize.setInt(mHelper, metrics.widthPixels)
-                    EdgeLevel.MED -> mEdgeSize.setInt(mHelper, metrics.widthPixels / 2)
+                    EdgeLevel.MAX -> mEdgeSize.setInt(mHelper, size)
+                    EdgeLevel.MED -> mEdgeSize.setInt(mHelper, size / 2)
                     EdgeLevel.MIN -> mEdgeSize.setInt(mHelper, (20 * metrics.density + 0.5f).toInt())
                 }
             }
@@ -137,30 +169,6 @@ open class SwipeBackLayout : FrameLayout {
             e.printStackTrace()
         }
 
-    }
-
-    @IntDef(EDGE_LEFT, EDGE_RIGHT, EDGE_ALL)
-    @kotlin.annotation.Retention(AnnotationRetention.SOURCE)
-    annotation class EdgeOrientation
-
-    /**
-     * Set a drawable used for edge shadow.
-     */
-    fun setShadow(shadow: Drawable, edgeFlag: Int) {
-        if (edgeFlag and EDGE_LEFT != 0) {
-            mShadowLeft = shadow
-        } else if (edgeFlag and EDGE_RIGHT != 0) {
-            mShadowRight = shadow
-        }
-        invalidate()
-    }
-
-    /**
-     * Set a drawable used for edge shadow.
-     */
-    fun setShadow(resId: Int, edgeFlag: Int) {
-        val drawable = ContextCompat.getDrawable(context, resId)!!
-        setShadow(drawable, edgeFlag)
     }
 
     /**
@@ -232,36 +240,63 @@ open class SwipeBackLayout : FrameLayout {
         val childRect = mTmpRect
         child.getHitRect(childRect)
 
-        if (mCurrentSwipeOrientation and EDGE_LEFT != 0) {
-            mShadowLeft!!.setBounds(
-                childRect.left - mShadowLeft!!.intrinsicWidth,
-                childRect.top,
-                childRect.left,
-                childRect.bottom
-            )
-            mShadowLeft!!.alpha = (mScrimOpacity * FULL_ALPHA).toInt()
-            mShadowLeft!!.draw(canvas)
-        } else if (mCurrentSwipeOrientation and EDGE_RIGHT != 0) {
-            mShadowRight!!.setBounds(
-                childRect.right,
-                childRect.top,
-                childRect.right + mShadowRight!!.intrinsicWidth,
-                childRect.bottom
-            )
-            mShadowRight!!.alpha = (mScrimOpacity * FULL_ALPHA).toInt()
-            mShadowRight!!.draw(canvas)
+        checkDrawShadow(canvas, childRect, mShadowLeft, SwipeOrientation.LEFT)
+        checkDrawShadow(canvas, childRect, mShadowRight, SwipeOrientation.RIGHT)
+        checkDrawShadow(canvas, childRect, mShadowTop, SwipeOrientation.TOP)
+        checkDrawShadow(canvas, childRect, mShadowBottom, SwipeOrientation.BOTTOM)
+    }
+
+    private fun checkDrawShadow(canvas: Canvas, childRect: Rect, drawable: Drawable?, drawablePos: SwipeOrientation) {
+        if (mEdgeFlag and drawablePos.edges != 0) {
+            when (drawablePos) {
+                SwipeOrientation.LEFT -> drawable?.setBounds(
+                    childRect.left - mShadowLeft!!.intrinsicWidth,
+                    childRect.top,
+                    childRect.left,
+                    childRect.bottom
+                )
+                SwipeOrientation.RIGHT -> drawable?.setBounds(
+                    childRect.right,
+                    childRect.top,
+                    childRect.right + mShadowRight!!.intrinsicWidth,
+                    childRect.bottom
+                )
+                SwipeOrientation.TOP -> drawable?.setBounds(
+                    childRect.left,
+                    childRect.top - mShadowTop!!.intrinsicHeight,
+                    childRect.right,
+                    childRect.top
+                )
+                SwipeOrientation.BOTTOM -> drawable?.setBounds(
+                    childRect.left,
+                    childRect.bottom,
+                    childRect.right,
+                    childRect.bottom + mShadowBottom!!.intrinsicHeight
+                )
+            }
+
+            drawable?.alpha = (mScrimOpacity * FULL_ALPHA).toInt()
+            drawable?.draw(canvas)
         }
     }
+
 
     private fun drawScrim(canvas: Canvas, child: View) {
         val baseAlpha = (DEFAULT_SCRIM_COLOR and -0x1000000).ushr(24)
         val alpha = (baseAlpha * mScrimOpacity).toInt()
         val color = alpha shl 24
 
-        if (mCurrentSwipeOrientation and EDGE_LEFT != 0) {
+        if (canSwipeFromLeft) {
             canvas.clipRect(0, 0, child.left, height)
-        } else if (mCurrentSwipeOrientation and EDGE_RIGHT != 0) {
+        }
+        if (canSwipeFromRight) {
             canvas.clipRect(child.right, 0, right, height)
+        }
+        if (canSwipeFromTop) {
+            canvas.clipRect(0, 0, width, child.top)
+        }
+        if (canSwipeFromBottom) {
+            canvas.clipRect(0, child.bottom, right, height)
         }
         canvas.drawColor(color)
     }
@@ -317,25 +352,23 @@ open class SwipeBackLayout : FrameLayout {
     internal inner class ViewDragCallback : ViewDragHelper.Callback() {
 
         override fun tryCaptureView(child: View, pointerId: Int): Boolean {
-            val dragEnable = mHelper!!.isEdgeTouched(mEdgeFlag, pointerId)
+            val dragEnable = (edgeLevel == EdgeLevel.MAX || mHelper!!.isEdgeTouched(mEdgeFlag, pointerId))
             if (dragEnable) {
-                if(edgeLevel == EdgeLevel.MAX){
-                    mCurrentSwipeOrientation = mEdgeFlag
-                } else {
-                    if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {
-                        mCurrentSwipeOrientation = EDGE_LEFT
-                    } else if (mHelper!!.isEdgeTouched(EDGE_RIGHT, pointerId)) {
-                        mCurrentSwipeOrientation = EDGE_RIGHT
-                    }
-                }
+//                if(edgeLevel != EdgeLevel.MAX){
+//                    if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {
+//                        currentSwipeOrientation = EDGE_LEFT
+//                    } else if (mHelper!!.isEdgeTouched(EDGE_RIGHT, pointerId)) {
+//                        currentSwipeOrientation = EDGE_RIGHT
+//                    }
+//                }
 
                 if (mListeners?.isNotEmpty() == true) {
                     for (listener in mListeners!!) {
-                        listener.onEdgeTouch(mCurrentSwipeOrientation)
+                        listener.onEdgeTouch(mEdgeFlag)
                     }
                 }
 
-                if(preCounter?.canCaptureView(mEdgeFlag) == false){
+                if(preCounter?.canCaptureView() == false){
                     return false
                 }
 
@@ -367,14 +400,29 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int {
-            var ret = 0
-            if (mCurrentSwipeOrientation and EDGE_LEFT != 0) {
-                ret = min(child.width, max(left, 0))
-            } else if (mCurrentSwipeOrientation and EDGE_RIGHT != 0) {
-                ret = min(0, max(left, -child.width))
+            return when {
+                (canSwipeFromTop && canSwipeFromBottom && canSwipeFromLeft && canSwipeFromRight
+                        && (preCounter?.dragDirection == DragDirection.FROMTOP || preCounter?.dragDirection == DragDirection.FROMBOTTOM)) -> 0
+                (canSwipeFromLeft && canSwipeFromRight) -> {
+                    min(child.width, max(left, -child.width))
+                }
+                canSwipeFromLeft -> min(child.width, max(left, 0))
+                canSwipeFromRight -> min(0, max(left, -child.width))
+                else -> 0
             }
-            return ret
         }
+
+        override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int {
+            return when {
+                (canSwipeFromTop && canSwipeFromBottom && canSwipeFromLeft && canSwipeFromRight
+                        && (preCounter?.dragDirection == DragDirection.FROMLEFT || preCounter?.dragDirection == DragDirection.FROMRIGHT)) -> 0
+                (canSwipeFromTop && canSwipeFromBottom) -> min(child.height, max(top, -child.height))
+                canSwipeFromTop -> min(child.height, max(top, 0))
+                canSwipeFromBottom -> min(0, max(top, -child.height))
+                else -> 0
+            }
+        }
+
 
         override fun onViewPositionChanged(
             changedView: View,
@@ -384,17 +432,18 @@ open class SwipeBackLayout : FrameLayout {
             dy: Int
         ) {
             super.onViewPositionChanged(changedView, left, top, dx, dy)
-            if (mCurrentSwipeOrientation and EDGE_LEFT != 0) {
-                mScrollPercent = abs(left.toFloat() / (width + mShadowLeft!!.intrinsicWidth))
-            } else if (mCurrentSwipeOrientation and EDGE_RIGHT != 0) {
-                mScrollPercent =
-                    abs(left.toFloat() / (mContentView!!.width + mShadowRight!!.intrinsicWidth))
+            mScrollPercent = when {
+                left > 0 && canSwipeFromLeft -> abs(left.toFloat() / (width + mShadowLeft!!.intrinsicWidth))
+                left < 0 && canSwipeFromRight -> abs(left.toFloat() / (mContentView!!.width + mShadowRight!!.intrinsicWidth))
+                top > 0 && canSwipeFromTop -> abs(top.toFloat() / (height + mShadowTop!!.intrinsicHeight))
+                top < 0 && canSwipeFromBottom -> abs(top.toFloat() / (mContentView!!.height + mShadowBottom!!.intrinsicHeight))
+                else -> 0f
             }
 
             invalidate()
 
             if (mListeners?.isNotEmpty() == true
-                && mHelper!!.viewDragState == STATE_DRAGGING
+                && mHelper!!.viewDragState == ViewDragHelper.STATE_DRAGGING
                 && mScrollPercent <= 1 && mScrollPercent > 0) {
                 for (listener in mListeners!!) {
                     listener.onDragScrolled(mScrollPercent)
@@ -424,24 +473,33 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         override fun getViewHorizontalDragRange(child: View): Int {
-            if (mFragment != null) {
-                return 1
-            } else if (mActivity != null && (mActivity as SwipeBackActivity).swipeBackPriority()) {
-                return 1
-            }
-            return 0
+            return if ((canSwipeFromLeft || canSwipeFromRight)
+                && (mFragment != null || (mActivity != null && (mActivity as SwipeBackActivity).swipeBackPriority()))
+            ) 1 else 0
+        }
+
+        override fun getViewVerticalDragRange(child: View): Int {
+            return if ((canSwipeFromTop || canSwipeFromBottom)
+                && (mFragment != null || (mActivity != null && (mActivity as SwipeBackActivity).swipeBackPriority()))
+            ) 1 else 0
         }
 
         override fun onViewReleased(releasedChild: View, xvel: Float, yvel: Float) {
-            val childWidth = releasedChild.width
-
-            val top = 0
             val left = when {
-                (mCurrentSwipeOrientation and EDGE_LEFT != 0) && (xvel > 0 || xvel == 0f && mScrollPercent > mScrollFinishThreshold) -> {
-                    childWidth + mShadowLeft!!.intrinsicWidth + OVERSCROLL_DISTANCE
+                releasedChild.x > 0 && canSwipeFromLeft && (xvel > 0 || (xvel == 0f && mScrollPercent > mScrollFinishThreshold)) -> {
+                    releasedChild.width + mShadowLeft!!.intrinsicWidth + OVERSCROLL_DISTANCE
                 }
-                (mCurrentSwipeOrientation and EDGE_RIGHT != 0) && (xvel < 0 || xvel == 0f && mScrollPercent > mScrollFinishThreshold) -> {
-                    -(childWidth + mShadowRight!!.intrinsicWidth + OVERSCROLL_DISTANCE)
+                releasedChild.x < 0 && canSwipeFromRight && (xvel < 0 || (xvel == 0f && mScrollPercent > mScrollFinishThreshold)) -> {
+                    -(releasedChild.width + mShadowRight!!.intrinsicWidth + OVERSCROLL_DISTANCE)
+                }
+                else -> 0
+            }
+            val top = when {
+                releasedChild.y > 0 && canSwipeFromTop && (yvel > 0 || (yvel == 0f && mScrollPercent > mScrollFinishThreshold)) -> {
+                    releasedChild.height + mShadowTop!!.intrinsicHeight + OVERSCROLL_DISTANCE
+                }
+                releasedChild.y < 0 && canSwipeFromBottom && (yvel < 0 || (yvel == 0f && mScrollPercent > mScrollFinishThreshold)) -> {
+                    -(releasedChild.height + mShadowBottom!!.intrinsicHeight + OVERSCROLL_DISTANCE)
                 }
                 else -> 0
             }
@@ -458,20 +516,21 @@ open class SwipeBackLayout : FrameLayout {
                 }
             }
         }
+    }
 
-        override fun onEdgeTouched(edgeFlags: Int, pointerId: Int) {
-            super.onEdgeTouched(edgeFlags, pointerId)
-            if (mEdgeFlag and edgeFlags != 0) {
-                mCurrentSwipeOrientation = edgeFlags
-            }
-        }
-
+    enum class DragDirection {
+        FROMLEFT,
+        FROMRIGHT,
+        FROMTOP,
+        FROMBOTTOM,
+        NONE
     }
 
     internal inner class DragPreCounter {
         private var canDrag = false
         private var firstDragPoint: PointF? = null
         private var lastDragPoint: PointF? = null
+        open var dragDirection: DragDirection = DragDirection.NONE
 
         private fun clearDrag(){
             canDrag = false
@@ -493,12 +552,26 @@ open class SwipeBackLayout : FrameLayout {
             }
         }
 
-        fun canCaptureView(edges: Int): Boolean {
+        fun canCaptureView(): Boolean {
             if (!canDrag && firstDragPoint != null && lastDragPoint != null) {
-                val dragX = abs(firstDragPoint!!.x - lastDragPoint!!.x)
-                val dragY = abs(firstDragPoint!!.y - lastDragPoint!!.y)
+                val dragX = lastDragPoint!!.x - firstDragPoint!!.x
+                val dragY = lastDragPoint!!.y - firstDragPoint!!.y
 
-                if (dragY < dragX && dragX / width > preDragPercent / 100) {
+                val dirHoriz = abs(dragX) > abs(dragY)
+
+                dragDirection = when {
+                    dirHoriz && dragX > 0 ->  DragDirection.FROMLEFT
+                    dirHoriz && dragX < 0 ->  DragDirection.FROMRIGHT
+                    !dirHoriz && dragY > 0 -> DragDirection.FROMTOP
+                    !dirHoriz && dragY < 0 -> DragDirection.FROMBOTTOM
+                    else -> DragDirection.NONE
+                }
+
+                if ((canSwipeFromLeft && dragDirection == DragDirection.FROMLEFT && abs(dragX) / width > preDragPercent / 100)
+                    || (canSwipeFromRight && dragDirection == DragDirection.FROMRIGHT && abs(dragX) / width > preDragPercent / 100)
+                    || (canSwipeFromTop && dragDirection == DragDirection.FROMTOP && abs(dragY) / width > preDragPercent / 100)
+                    || (canSwipeFromBottom && dragDirection == DragDirection.FROMBOTTOM && abs(dragY) / width > preDragPercent / 100)
+                ) {
                     canDrag = true
                 } else {
                     return false
@@ -509,8 +582,6 @@ open class SwipeBackLayout : FrameLayout {
             return true
         }
     }
-
-    private var preCounter: DragPreCounter? = DragPreCounter()
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         preCounter?.setDragPoints(ev)
@@ -526,38 +597,6 @@ open class SwipeBackLayout : FrameLayout {
     }
 
     companion object {
-
-        /**
-         * Edge flag indicating that the left edge should be affected.
-         */
-        const val EDGE_LEFT = ViewDragHelper.EDGE_LEFT
-
-        /**
-         * Edge flag indicating that the right edge should be affected.
-         */
-        const val EDGE_RIGHT = ViewDragHelper.EDGE_RIGHT
-
-        const val EDGE_ALL = EDGE_LEFT or EDGE_RIGHT
-
-
-        /**
-         * A view is not currently being dragged or animating as a result of a
-         * fling/snap.
-         */
-        val STATE_IDLE = ViewDragHelper.STATE_IDLE
-
-        /**
-         * A view is currently being dragged. The position is currently changing as
-         * a result of user input or simulated user input.
-         */
-        val STATE_DRAGGING = ViewDragHelper.STATE_DRAGGING
-
-        /**
-         * A view is currently settling into place as a result of a fling or
-         * predefined non-interactive motion.
-         */
-        val STATE_SETTLING = ViewDragHelper.STATE_SETTLING
-
         private val DEFAULT_SCRIM_COLOR = -0x67000000
         private val FULL_ALPHA = 255
         private val DEFAULT_SCROLL_THRESHOLD = 0.4f

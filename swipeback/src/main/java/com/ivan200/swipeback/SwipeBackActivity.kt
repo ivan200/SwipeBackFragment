@@ -47,11 +47,15 @@ open class SwipeBackActivity : AppCompatActivity {
     }
 
     protected fun setEdgeLevel(widthPixel: Int) {
-        swipeBackLayout.setEdgeLevel(widthPixel)
+        swipeBackLayout.edgeLevelPixels = widthPixel
     }
 
     protected fun setPreDragPercent(percent: Float) {
         swipeBackLayout.preDragPercent = percent
+    }
+
+    protected fun setEdgeOrientation(orientation: SwipeBackLayout.SwipeOrientation) {
+        swipeBackLayout.currentSwipeOrientation = orientation
     }
 
     fun setSwipeBackEnable(enable: Boolean) {

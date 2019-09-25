@@ -2,6 +2,7 @@ package com.ivan200.swipeback
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
@@ -292,19 +293,21 @@ open class SwipeBackLayout : FrameLayout {
         val alpha = (baseAlpha * mScrimOpacity).toInt()
         val color = alpha shl 24
 
+        val paint = Paint()
+        paint.color = color
+
         if (canSwipeFromLeft) {
-            canvas.clipRect(0, 0, child.left, height)
+            canvas.drawRect(0f, 0f, child.left.toFloat(), height.toFloat(), paint)
         }
         if (canSwipeFromRight) {
-            canvas.clipRect(child.right, 0, right, height)
+            canvas.drawRect(child.right.toFloat(), 0F, right.toFloat(), height.toFloat(), paint)
         }
         if (canSwipeFromTop) {
-            canvas.clipRect(0, 0, width, child.top)
+            canvas.drawRect(0F, 0F, width.toFloat(), child.top.toFloat(), paint)
         }
         if (canSwipeFromBottom) {
-            canvas.clipRect(0, child.bottom, right, height)
+            canvas.drawRect(0F, child.bottom.toFloat(), right.toFloat(), height.toFloat(), paint)
         }
-        canvas.drawColor(color)
     }
 
     override fun computeScroll() {
@@ -358,7 +361,7 @@ open class SwipeBackLayout : FrameLayout {
     internal inner class ViewDragCallback : ViewDragHelper.Callback() {
 
         override fun tryCaptureView(child: View, pointerId: Int): Boolean {
-            val dragEnable = (edgeLevel == SwipeBackLayout.EdgeLevel.MAX || mHelper!!.isEdgeTouched(mEdgeFlag, pointerId))
+            val dragEnable = (edgeLevel == EdgeLevel.MAX || mHelper!!.isEdgeTouched(mEdgeFlag, pointerId))
             if (dragEnable) {
 //                if(edgeLevel != EdgeLevel.MAX){
 //                    if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {

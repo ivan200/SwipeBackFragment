@@ -3,7 +3,7 @@ package com.ivan200.exampleswipeback
 import android.os.Bundle
 import androidx.customview.widget.ViewDragHelper
 import com.ivan200.exampleswipeback.ui.BaseActivity
-import com.ivan200.exampleswipeback.ui.fragments.FragmentOne
+import com.ivan200.exampleswipeback.fragments.FragmentOne
 
 //
 // Created by Ivan200 on 16.09.2019.

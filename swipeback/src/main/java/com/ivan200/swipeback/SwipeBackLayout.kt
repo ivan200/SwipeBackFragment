@@ -585,7 +585,7 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         fun canCaptureView(): Boolean {
-            if (!canDrag && firstDragPoint != null && lastDragPoint != null) {
+            return if (!canDrag && firstDragPoint != null && lastDragPoint != null) {
                 val dir = getDragDirection()
 
                 val dragX = lastDragPoint!!.x - firstDragPoint!!.x
@@ -597,13 +597,9 @@ open class SwipeBackLayout : FrameLayout {
                     || (canSwipeFromBottom && dir == DragDirection.FROMBOTTOM && abs(dragY) / width > preDragPercent / 100)
                 ) {
                     canDrag = true
-                } else {
-                    return false
-                }
-            } else if (!canDrag) {
-                return false
-            }
-            return true
+                    true
+                } else false
+            } else canDrag
         }
     }
 

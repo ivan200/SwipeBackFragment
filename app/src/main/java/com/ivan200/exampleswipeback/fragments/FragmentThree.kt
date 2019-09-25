@@ -1,4 +1,4 @@
-package com.ivan200.exampleswipeback.ui.fragments
+package com.ivan200.exampleswipeback.fragments
 
 import android.os.Bundle
 import android.view.View

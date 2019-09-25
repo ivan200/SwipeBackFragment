@@ -2,6 +2,7 @@ package com.ivan200.swipeback
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.PointF
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
@@ -17,6 +18,7 @@ import androidx.customview.widget.ViewDragHelper
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import java.util.*
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
@@ -55,6 +57,13 @@ open class SwipeBackLayout : FrameLayout {
             field = edgeLevel
             validateEdgeLevel(0, edgeLevel)
         }
+
+    var preDragPercent: Float = 8f
+        set(preDragPercent) {
+            field = preDragPercent
+            preCounter = if (preDragPercent > 0f) DragPreCounter() else null
+        }
+
 
     /**
      * The set of listeners to be sent events through.
@@ -315,10 +324,14 @@ open class SwipeBackLayout : FrameLayout {
                     mCurrentSwipeOrientation = EDGE_RIGHT
                 }
 
-                if (mListeners != null && !mListeners!!.isEmpty()) {
+                if (mListeners?.isNotEmpty() == true) {
                     for (listener in mListeners!!) {
                         listener.onEdgeTouch(mCurrentSwipeOrientation)
                     }
+                }
+
+                if(preCounter?.canCaptureView() == false){
+                    return false
                 }
 
                 if (mPreFragment == null) {
@@ -340,8 +353,8 @@ open class SwipeBackLayout : FrameLayout {
                     }
                 } else {
                     val preView = mPreFragment!!.view
-                    if (preView != null && preView.visibility != View.VISIBLE) {
-                        preView.visibility = View.VISIBLE
+                    if (preView?.visibility != View.VISIBLE) {
+                        preView!!.visibility = View.VISIBLE
                     }
                 }
             }
@@ -367,16 +380,17 @@ open class SwipeBackLayout : FrameLayout {
         ) {
             super.onViewPositionChanged(changedView, left, top, dx, dy)
             if (mCurrentSwipeOrientation and EDGE_LEFT != 0) {
-                mScrollPercent = Math.abs(left.toFloat() / (width + mShadowLeft!!.intrinsicWidth))
+                mScrollPercent = abs(left.toFloat() / (width + mShadowLeft!!.intrinsicWidth))
             } else if (mCurrentSwipeOrientation and EDGE_RIGHT != 0) {
                 mScrollPercent =
-                    Math.abs(left.toFloat() / (mContentView!!.width + mShadowRight!!.intrinsicWidth))
+                    abs(left.toFloat() / (mContentView!!.width + mShadowRight!!.intrinsicWidth))
             }
+
             invalidate()
 
-            if (mListeners != null && !mListeners!!.isEmpty()
-                && mHelper!!.viewDragState == STATE_DRAGGING && mScrollPercent <= 1 && mScrollPercent > 0
-            ) {
+            if (mListeners?.isNotEmpty() == true
+                && mHelper!!.viewDragState == STATE_DRAGGING
+                && mScrollPercent <= 1 && mScrollPercent > 0) {
                 for (listener in mListeners!!) {
                     listener.onDragScrolled(mScrollPercent)
                 }
@@ -433,7 +447,7 @@ open class SwipeBackLayout : FrameLayout {
 
         override fun onViewDragStateChanged(state: Int) {
             super.onViewDragStateChanged(state)
-            if (mListeners != null && !mListeners!!.isEmpty()) {
+            if (mListeners?.isNotEmpty() == true) {
                 for (listener in mListeners!!) {
                     listener.onDragStateChange(state)
                 }
@@ -449,19 +463,64 @@ open class SwipeBackLayout : FrameLayout {
 
     }
 
+    internal inner class DragPreCounter{
+        private var canDrag = false
+        private var firstDragPoint: PointF? = null
+        private var lastDragPoint: PointF? = null
+
+        private fun clearDrag(){
+            canDrag = false
+            firstDragPoint = null
+            lastDragPoint = null
+        }
+
+        fun setDragPoints(ev: MotionEvent){
+            when {
+                ev.actionMasked == MotionEvent.ACTION_MOVE -> {
+                    if(firstDragPoint == null){
+                        firstDragPoint = PointF(ev.x, ev.y)
+                    }
+                    lastDragPoint = PointF(ev.x, ev.y)
+                }
+                ev.actionMasked == MotionEvent.ACTION_UP -> {
+                    clearDrag()
+                }
+            }
+        }
+
+        fun canCaptureView(): Boolean {
+            if(!canDrag && firstDragPoint != null && lastDragPoint != null){
+                val dragX = abs(firstDragPoint!!.x - lastDragPoint!!.x)
+                val dragY = abs(firstDragPoint!!.y - lastDragPoint!!.y)
+                if(dragY < dragX && dragX/width > preDragPercent/100){
+                    canDrag = true
+                } else{
+                    return false
+                }
+            } else if(!canDrag){
+                return false
+            }
+            return true
+        }
+    }
+
+    private var preCounter: DragPreCounter? = DragPreCounter()
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-        return if (!mEnable) super.onInterceptTouchEvent(ev) else mHelper!!.shouldInterceptTouchEvent(
-            ev
-        )
+        preCounter?.setDragPoints(ev)
+        return if (!mEnable) super.onInterceptTouchEvent(ev)
+        else mHelper!!.shouldInterceptTouchEvent(ev)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        preCounter?.setDragPoints(event)
         if (!mEnable) return super.onTouchEvent(event)
         mHelper!!.processTouchEvent(event)
         return true
     }
 
     companion object {
+
         /**
          * Edge flag indicating that the left edge should be affected.
          */

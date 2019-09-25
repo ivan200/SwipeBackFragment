@@ -17,7 +17,7 @@ open class SwipeBackFragment : Fragment {
     constructor() : super()
     constructor(@LayoutRes contentLayoutId: Int) : super(contentLayoutId)
 
-    var swipeBackLayout: SwipeBackLayout? = null
+    lateinit var swipeBackLayout: SwipeBackLayout
         private set
 
     private var mNoAnim: Animation? = null
@@ -64,35 +64,39 @@ open class SwipeBackFragment : Fragment {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         )
-        swipeBackLayout!!.layoutParams = params
-        swipeBackLayout!!.setBackgroundColor(Color.TRANSPARENT)
+        swipeBackLayout.layoutParams = params
+        swipeBackLayout.setBackgroundColor(Color.TRANSPARENT)
     }
 
     protected fun attachToSwipeBack(view: View): View {
-        return swipeBackLayout!!.also {
+        return swipeBackLayout.also {
             it.attachToFragment(this, view)
         }
     }
 
     protected fun attachToSwipeBack(view: View, edgeLevel: SwipeBackLayout.EdgeLevel): View {
-        return swipeBackLayout!!.also {
+        return swipeBackLayout.also {
             it.attachToFragment(this, view)
             it.edgeLevel = edgeLevel
         }
     }
 
     protected fun setEdgeLevel(edgeLevel: SwipeBackLayout.EdgeLevel) {
-        swipeBackLayout!!.edgeLevel = edgeLevel
+        swipeBackLayout.edgeLevel = edgeLevel
     }
 
     protected fun setEdgeLevel(widthPixel: Int) {
-        swipeBackLayout!!.setEdgeLevel(widthPixel)
+        swipeBackLayout.setEdgeLevel(widthPixel)
+    }
+
+    protected fun setPreDragPercent(percent: Float) {
+        swipeBackLayout.preDragPercent = percent
     }
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
-        if (hidden && swipeBackLayout != null) {
-            swipeBackLayout!!.hiddenFragment()
+        if (hidden) {
+            swipeBackLayout.hiddenFragment()
         }
     }
 
@@ -129,7 +133,7 @@ open class SwipeBackFragment : Fragment {
     }
 
     fun setSwipeBackEnable(enable: Boolean) {
-        swipeBackLayout!!.setEnableGesture(enable)
+        swipeBackLayout.setEnableGesture(enable)
     }
 
     companion object {

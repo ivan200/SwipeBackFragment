@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">TestProject</string>
+    <string name="app_name">ExampleSwipeBack</string>
 
     <string name="fr_one">Fragment One</string>
     <string name="fr_two">Fragment Two</string>

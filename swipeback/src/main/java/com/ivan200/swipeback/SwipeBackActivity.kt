@@ -50,6 +50,10 @@ open class SwipeBackActivity : AppCompatActivity {
         swipeBackLayout.setEdgeLevel(widthPixel)
     }
 
+    protected fun setPreDragPercent(percent: Float) {
+        swipeBackLayout.preDragPercent = percent
+    }
+
     fun setSwipeBackEnable(enable: Boolean) {
         swipeBackLayout.setEnableGesture(enable)
     }

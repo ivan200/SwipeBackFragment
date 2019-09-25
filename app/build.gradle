@@ -7,7 +7,7 @@ apply plugin: 'kotlin-android-extensions'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "com.ivan200.testproject"
+        applicationId "com.ivan200.exampleswipeback"
         minSdkVersion 14
         targetSdkVersion 28
         versionCode 1

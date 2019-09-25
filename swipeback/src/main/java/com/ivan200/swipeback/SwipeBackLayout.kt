@@ -59,21 +59,20 @@ open class SwipeBackLayout : FrameLayout {
      * [ViewDragHelper.Callback.onEdgeDragStarted] methods will only be invoked
      * for edges for which edge tracking has been enabled.
      */
-    var currentSwipeOrientation: SwipeOrientation = SwipeOrientation.LEFT
+    var currentSwipeOrientation: Int = ViewDragHelper.EDGE_LEFT
         set(it) {
             field = it
-            mHelper!!.setEdgeTrackingEnabled(it.edges)
+            mHelper!!.setEdgeTrackingEnabled(it)
             setShadow(it)
             validateEdgeLevel(edgeLevelPixels, edgeLevel)
         }
 
-    val mEdgeFlag get() = currentSwipeOrientation.edges
+    val mEdgeFlag get() = currentSwipeOrientation
 
-    val canSwipeFromLeft get() = mEdgeFlag and SwipeOrientation.LEFT.edges != 0
-    val canSwipeFromTop get() = mEdgeFlag and SwipeOrientation.TOP.edges != 0
-    val canSwipeFromRight get() = mEdgeFlag and SwipeOrientation.RIGHT.edges != 0
-    val canSwipeFromBottom get() = mEdgeFlag and SwipeOrientation.BOTTOM.edges != 0
-
+    val canSwipeFromLeft get() = mEdgeFlag and ViewDragHelper.EDGE_LEFT != 0
+    val canSwipeFromTop get() = mEdgeFlag and ViewDragHelper.EDGE_TOP != 0
+    val canSwipeFromRight get() = mEdgeFlag and ViewDragHelper.EDGE_RIGHT != 0
+    val canSwipeFromBottom get() = mEdgeFlag and ViewDragHelper.EDGE_BOTTOM != 0
 
     var edgeLevel: EdgeLevel? = null
         set(edgeLevel) {
@@ -107,7 +106,7 @@ open class SwipeBackLayout : FrameLayout {
     private fun init() {
         mHelper = ViewDragHelper.create(this, ViewDragCallback())
 
-        currentSwipeOrientation = SwipeOrientation.LEFT
+        currentSwipeOrientation = ViewDragHelper.EDGE_LEFT
     }
 
     /**
@@ -122,24 +121,24 @@ open class SwipeBackLayout : FrameLayout {
     }
 
 
-    enum class SwipeOrientation private constructor(var edges: Int) {
-        LEFT(ViewDragHelper.EDGE_LEFT),
-        RIGHT(ViewDragHelper.EDGE_RIGHT),
-        HORISONTAL(ViewDragHelper.EDGE_LEFT or ViewDragHelper.EDGE_RIGHT),
-        TOP(ViewDragHelper.EDGE_TOP),
-        BOTTOM(ViewDragHelper.EDGE_BOTTOM),
-        VERTICAL(ViewDragHelper.EDGE_TOP or ViewDragHelper.EDGE_BOTTOM),
-        ALL(ViewDragHelper.EDGE_ALL);
-    }
+//    enum class SwipeOrientation private constructor(var edges: Int) {
+//        LEFT(ViewDragHelper.EDGE_LEFT),
+//        RIGHT(ViewDragHelper.EDGE_RIGHT),
+//        HORISONTAL(ViewDragHelper.EDGE_LEFT or ViewDragHelper.EDGE_RIGHT),
+//        TOP(ViewDragHelper.EDGE_TOP),
+//        BOTTOM(ViewDragHelper.EDGE_BOTTOM),
+//        VERTICAL(ViewDragHelper.EDGE_TOP or ViewDragHelper.EDGE_BOTTOM),
+//        ALL(ViewDragHelper.EDGE_ALL);
+//    }
 
-    fun setShadow(orientation: SwipeOrientation) {
-        if (mShadowLeft == null && orientation.edges and SwipeOrientation.LEFT.edges != 0)
+    fun setShadow(orientation: Int) {
+        if (mShadowLeft == null && orientation and ViewDragHelper.EDGE_LEFT != 0)
             mShadowLeft = ContextCompat.getDrawable(context, R.drawable.shadow_left)!!
-        if (mShadowRight == null && orientation.edges and SwipeOrientation.RIGHT.edges != 0)
+        if (mShadowRight == null && orientation and ViewDragHelper.EDGE_RIGHT != 0)
             mShadowRight = ContextCompat.getDrawable(context, R.drawable.shadow_right)!!
-        if (mShadowTop == null && orientation.edges and SwipeOrientation.TOP.edges != 0)
+        if (mShadowTop == null && orientation and ViewDragHelper.EDGE_TOP != 0)
             mShadowTop = ContextCompat.getDrawable(context, R.drawable.shadow_top)!!
-        if (mShadowBottom == null && orientation.edges and SwipeOrientation.BOTTOM.edges != 0)
+        if (mShadowBottom == null && orientation and ViewDragHelper.EDGE_BOTTOM != 0)
             mShadowBottom = ContextCompat.getDrawable(context, R.drawable.shadow_bottom)!!
     }
 
@@ -240,44 +239,51 @@ open class SwipeBackLayout : FrameLayout {
         val childRect = mTmpRect
         child.getHitRect(childRect)
 
-        checkDrawShadow(canvas, childRect, mShadowLeft, SwipeOrientation.LEFT)
-        checkDrawShadow(canvas, childRect, mShadowRight, SwipeOrientation.RIGHT)
-        checkDrawShadow(canvas, childRect, mShadowTop, SwipeOrientation.TOP)
-        checkDrawShadow(canvas, childRect, mShadowBottom, SwipeOrientation.BOTTOM)
+        if (canSwipeFromLeft)
+            checkDrawShadow(canvas, childRect, mShadowLeft, DragDirection.FROMLEFT)
+        if (canSwipeFromRight)
+            checkDrawShadow(canvas, childRect, mShadowRight, DragDirection.FROMRIGHT)
+        if (canSwipeFromTop)
+            checkDrawShadow(canvas, childRect, mShadowTop, DragDirection.FROMTOP)
+        if (canSwipeFromBottom)
+            checkDrawShadow(canvas, childRect, mShadowBottom, DragDirection.FROMBOTTOM)
     }
 
-    private fun checkDrawShadow(canvas: Canvas, childRect: Rect, drawable: Drawable?, drawablePos: SwipeOrientation) {
-        if (mEdgeFlag and drawablePos.edges != 0) {
-            when (drawablePos) {
-                SwipeOrientation.LEFT -> drawable?.setBounds(
-                    childRect.left - mShadowLeft!!.intrinsicWidth,
-                    childRect.top,
-                    childRect.left,
-                    childRect.bottom
-                )
-                SwipeOrientation.RIGHT -> drawable?.setBounds(
-                    childRect.right,
-                    childRect.top,
-                    childRect.right + mShadowRight!!.intrinsicWidth,
-                    childRect.bottom
-                )
-                SwipeOrientation.TOP -> drawable?.setBounds(
-                    childRect.left,
-                    childRect.top - mShadowTop!!.intrinsicHeight,
-                    childRect.right,
-                    childRect.top
-                )
-                SwipeOrientation.BOTTOM -> drawable?.setBounds(
-                    childRect.left,
-                    childRect.bottom,
-                    childRect.right,
-                    childRect.bottom + mShadowBottom!!.intrinsicHeight
-                )
-            }
-
-            drawable?.alpha = (mScrimOpacity * FULL_ALPHA).toInt()
-            drawable?.draw(canvas)
+    private fun checkDrawShadow(
+        canvas: Canvas,
+        childRect: Rect,
+        drawable: Drawable?,
+        drawablePos: DragDirection
+    ) {
+        when (drawablePos) {
+            DragDirection.FROMLEFT -> drawable?.setBounds(
+                childRect.left - mShadowLeft!!.intrinsicWidth,
+                childRect.top,
+                childRect.left,
+                childRect.bottom
+            )
+            DragDirection.FROMRIGHT -> drawable?.setBounds(
+                childRect.right,
+                childRect.top,
+                childRect.right + mShadowRight!!.intrinsicWidth,
+                childRect.bottom
+            )
+            DragDirection.FROMTOP -> drawable?.setBounds(
+                childRect.left,
+                childRect.top - mShadowTop!!.intrinsicHeight,
+                childRect.right,
+                childRect.top
+            )
+            DragDirection.FROMBOTTOM -> drawable?.setBounds(
+                childRect.left,
+                childRect.bottom,
+                childRect.right,
+                childRect.bottom + mShadowBottom!!.intrinsicHeight
+            )
         }
+
+        drawable?.alpha = (mScrimOpacity * FULL_ALPHA).toInt()
+        drawable?.draw(canvas)
     }
 
 
@@ -352,7 +358,7 @@ open class SwipeBackLayout : FrameLayout {
     internal inner class ViewDragCallback : ViewDragHelper.Callback() {
 
         override fun tryCaptureView(child: View, pointerId: Int): Boolean {
-            val dragEnable = (edgeLevel == EdgeLevel.MAX || mHelper!!.isEdgeTouched(mEdgeFlag, pointerId))
+            val dragEnable = (edgeLevel == SwipeBackLayout.EdgeLevel.MAX || mHelper!!.isEdgeTouched(mEdgeFlag, pointerId))
             if (dragEnable) {
 //                if(edgeLevel != EdgeLevel.MAX){
 //                    if (mHelper!!.isEdgeTouched(EDGE_LEFT, pointerId)) {
@@ -400,27 +406,36 @@ open class SwipeBackLayout : FrameLayout {
         }
 
         override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int {
-            return when {
-                (canSwipeFromTop && canSwipeFromBottom && canSwipeFromLeft && canSwipeFromRight
-                        && (preCounter?.dragDirection == DragDirection.FROMTOP || preCounter?.dragDirection == DragDirection.FROMBOTTOM)) -> 0
-                (canSwipeFromLeft && canSwipeFromRight) -> {
-                    min(child.width, max(left, -child.width))
+            return if (preCounter == null
+                || preCounter?.dragDirection == DragDirection.FROMLEFT
+                || preCounter?.dragDirection == DragDirection.FROMRIGHT
+            ) {
+                when {
+                    (canSwipeFromLeft && canSwipeFromRight) -> {
+                        min(child.width, max(left, -child.width))
+                    }
+                    canSwipeFromLeft -> min(child.width, max(left, 0))
+                    canSwipeFromRight -> min(0, max(left, -child.width))
+                    else -> 0
                 }
-                canSwipeFromLeft -> min(child.width, max(left, 0))
-                canSwipeFromRight -> min(0, max(left, -child.width))
-                else -> 0
-            }
+            } else 0
         }
 
         override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int {
-            return when {
-                (canSwipeFromTop && canSwipeFromBottom && canSwipeFromLeft && canSwipeFromRight
-                        && (preCounter?.dragDirection == DragDirection.FROMLEFT || preCounter?.dragDirection == DragDirection.FROMRIGHT)) -> 0
-                (canSwipeFromTop && canSwipeFromBottom) -> min(child.height, max(top, -child.height))
-                canSwipeFromTop -> min(child.height, max(top, 0))
-                canSwipeFromBottom -> min(0, max(top, -child.height))
-                else -> 0
-            }
+            return if (preCounter == null
+                || preCounter?.dragDirection == DragDirection.FROMTOP
+                || preCounter?.dragDirection == DragDirection.FROMBOTTOM
+            ) {
+                when {
+                    (canSwipeFromTop && canSwipeFromBottom) -> min(
+                        child.height,
+                        max(top, -child.height)
+                    )
+                    canSwipeFromTop -> min(child.height, max(top, 0))
+                    canSwipeFromBottom -> min(0, max(top, -child.height))
+                    else -> 0
+                }
+            } else 0
         }
 
 

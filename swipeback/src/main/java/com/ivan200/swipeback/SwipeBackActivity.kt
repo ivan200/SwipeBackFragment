@@ -54,7 +54,7 @@ open class SwipeBackActivity : AppCompatActivity {
         swipeBackLayout.preDragPercent = percent
     }
 
-    protected fun setEdgeOrientation(orientation: SwipeBackLayout.SwipeOrientation) {
+    protected fun setEdgeOrientation(orientation: Int) {
         swipeBackLayout.currentSwipeOrientation = orientation
     }
 

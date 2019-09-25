@@ -6,12 +6,15 @@
     android:layout_height="match_parent"
     tools:context=".ui.fragments.FragmentThree">
 
-    <include layout="@layout/view_toolbar" />
+    <include layout="@layout/view_toolbar"
+        android:id="@+id/toolbar_ref"/>
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:text="@string/fr_three"/>
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/toolbar_ref">
+
+    </ListView>
 
 </RelativeLayout>

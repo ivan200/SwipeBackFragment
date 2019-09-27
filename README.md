@@ -22,6 +22,9 @@ dependencies {
 }
 ```
 
+## Example
+<img src='screens/example.gif' width='330'/>
+
 # Developed By
 
 * Zakharov Ivan
